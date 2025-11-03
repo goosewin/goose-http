@@ -71,4 +71,4 @@ does this automatically). Environment-based filtering is supported via
 
 ## License
 
-This project is released under the MIT license. See `LICENSE` for details.
+This project is released under the CC0-1.0 license. See `LICENSE` for details.
