@@ -1,5 +1,7 @@
 # Goose HTTP
 
+[![Crates.io](https://img.shields.io/crates/v/goose-http.svg)](https://crates.io/crates/goose-http)
+
 Goose HTTP is a from-scratch implementation of an HTTP/1.1 server written in
 Rust. It adheres to the 2022 HTTPbis specification split:
 
@@ -12,6 +14,19 @@ framing, request parsing, conditional requests, Range handling, caching
 semantics, connection management, and a fully asynchronous runtime using
 Tokio.
 
+## Installation
+
+```bash
+cargo add goose-http
+```
+
+Or add it manually to your `Cargo.toml`:
+
+```toml
+[dependencies]
+goose-http = "0.1"
+```
+
 ## Getting Started
 
 ### Prerequisites
@@ -19,11 +34,52 @@ Tokio.
 - Rust toolchain (1.75+ recommended)
 - `cargo` for building and running
 
-### Building
+### First steps
 
-```bash
-cargo build
-```
+1. **Create a project**
+   ```bash
+   cargo new hello-goose
+   cd hello-goose
+   ```
+
+2. **Add Goose HTTP**
+   ```bash
+   cargo add goose-http
+   ```
+
+3. **Wire up a basic server** – drop this into `src/main.rs`:
+
+   ```rust
+   use goose_http::{
+       router,
+       request::Request,
+       response::Response,
+       common::StatusCode,
+       Server,
+   };
+
+   fn handle_root(_req: Request) -> Response {
+       let mut res = Response::new(StatusCode::OK);
+       res.set_body_text_static("Hello from Goose HTTP!\n");
+       res
+   }
+
+   #[tokio::main]
+   async fn main() -> anyhow::Result<()> {
+       let router = router().get("/", handle_root).build();
+       let server = Server::builder().with_addr("127.0.0.1:8080").with_handler(router).build();
+       println!("Listening on {}", server.addr());
+       server.run().await?;
+       Ok(())
+   }
+   ```
+
+4. **Run it**
+   ```bash
+   cargo run
+   ```
+
+You now have a minimal HTTP/1.1 server that speaks the Goose HTTP stack.
 
 ### Example Harness
 
