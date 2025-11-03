@@ -8,6 +8,7 @@ repository = "https://github.com/goosewin/goose-http"
 readme = "README.md"
 keywords = ["http", "http-1-1", "http-server", "rfc-9110", "rfc-9111", "rfc-9112"]
 categories = ["network-programming"]
+exclude = ["artifacts/**/*"]
 
 [dependencies]
 thiserror = "1"

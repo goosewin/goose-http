@@ -25,15 +25,15 @@ Tokio.
 cargo build
 ```
 
-### Running the Demo Server
+### Example Harness
 
 ```bash
-cargo run
+cargo run --bin compliance_harness -- --help
 ```
 
-The demo server binds to `127.0.0.1:8080` and serves a few sample routes from
-`src/main.rs`, showcasing ETag handling, Range requests, and OPTIONS/TRACE
-responses.
+The compliance harness binds to `127.0.0.1:18080` by default and exposes sample
+routes that exercise validators, range requests, and caching semantics. It is
+used to drive the conformance suites under `scripts/compliance/`.
 
 ### Testing
 
@@ -60,7 +60,8 @@ tests in `tests/http_flow.rs` spin up the server to verify `Expect:
 - `src/server/`: Tokio accept loop, connection orchestration, configurable
   timeouts and structured logging.
 - `src/log/`: Tracing-based logging façade with lazy initialisation.
-- `src/main.rs`: Demonstration binary wiring everything together.
+- `src/bin/compliance_harness.rs`: Compliance test harness used for automated
+  suites.
 
 ## Logging & Diagnostics
 
