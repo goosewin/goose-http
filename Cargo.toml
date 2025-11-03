@@ -2,6 +2,12 @@
 name = "goose-http"
 version = "0.1.0"
 edition = "2024"
+description = "HTTP/1.1 server for Rust implementing RFC 9110/9111/9112 semantics, caching, and range handling"
+license = "CC0 1.0"
+repository = "https://github.com/goosewin/goose-http"
+readme = "README.md"
+keywords = ["http", "http-1-1", "http-server", "rfc-9110", "rfc-9111", "rfc-9112"]
+categories = ["network-programming"]
 
 [dependencies]
 thiserror = "1"
