@@ -1,0 +1,79 @@
+{
+  "timestamp": 1762148258.7434099,
+  "host": "127.0.0.1",
+  "port": 18080,
+  "results": [
+    {
+      "path": "/cache/validator",
+      "description": "Validator endpoint emits ETag/Last-Modified",
+      "assertions": [
+        "status == 200",
+        "ETag present",
+        "Last-Modified present"
+      ],
+      "passed": true,
+      "details": {
+        "status": "200",
+        "etag": "\"compliance-validator\"",
+        "last-modified": "Wed, 21 Oct 2015 07:28:00 GMT",
+        "body": "Cache validation payload from Goose HTTP.\n"
+      }
+    },
+    {
+      "path": "/cache/validator",
+      "description": "Conditional request with matching ETag yields 304",
+      "assertions": [
+        "status == 304"
+      ],
+      "passed": true,
+      "details": {
+        "status": "304"
+      }
+    },
+    {
+      "path": "/cache/immutable",
+      "description": "Immutable resource advertises long-lived cache-control",
+      "assertions": [
+        "status == 200",
+        "max-age present",
+        "immutable present"
+      ],
+      "passed": true,
+      "details": {
+        "status": "200",
+        "cache-control": "max-age=31536000, immutable",
+        "etag": "\"compliance-immutable\""
+      }
+    },
+    {
+      "path": "/json/time",
+      "description": "Dynamic JSON endpoint is marked no-store",
+      "assertions": [
+        "status == 200",
+        "Cache-Control includes no-store"
+      ],
+      "passed": true,
+      "details": {
+        "status": "200",
+        "cache-control": "no-store",
+        "body": "{\"epoch_seconds\": 1762148258.460229000}"
+      }
+    },
+    {
+      "path": "/range/demo",
+      "description": "Range requests return 206 with Content-Range",
+      "assertions": [
+        "status == 206",
+        "Content-Range set"
+      ],
+      "passed": true,
+      "details": {
+        "status": "206",
+        "content-range": "bytes 0-3/2387",
+        "body": "Rang"
+      }
+    }
+  ],
+  "passed": 5,
+  "total": 5
+}

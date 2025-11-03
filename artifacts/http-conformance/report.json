@@ -1,0 +1,86 @@
+{
+  "timestamp": 1762150031.9602911,
+  "host": "127.0.0.1",
+  "port": 18080,
+  "tests": [
+    {
+      "rule": "code_400_after_bad_host_request",
+      "case": "no_host",
+      "description": "Request without Host header",
+      "expected": [
+        400
+      ],
+      "status": 400,
+      "passed": true,
+      "raw_response": "HTTP/1.1 400 Bad Request\r\ncontent-type: text/plain; charset=utf-8\r\ndate: Mon, 03 Nov 2025 06:07:11 GMT\r\nconnection: close\r\ncontent-length: 11\r\n\r\nBad Request"
+    },
+    {
+      "rule": "code_400_after_bad_host_request",
+      "case": "duplicate_host",
+      "description": "Request with duplicate Host headers",
+      "expected": [
+        400
+      ],
+      "status": 400,
+      "passed": true,
+      "raw_response": "HTTP/1.1 400 Bad Request\r\ncontent-type: text/plain; charset=utf-8\r\ndate: Mon, 03 Nov 2025 06:07:11 GMT\r\nconnection: close\r\ncontent-length: 11\r\n\r\nBad Request"
+    },
+    {
+      "rule": "code_400_after_bad_host_request",
+      "case": "invalid_host",
+      "description": "Request with invalid Host",
+      "expected": [
+        400
+      ],
+      "status": 400,
+      "passed": true,
+      "raw_response": "HTTP/1.1 400 Bad Request\r\ncontent-type: text/plain; charset=utf-8\r\ndate: Mon, 03 Nov 2025 06:07:11 GMT\r\nconnection: close\r\ncontent-length: 11\r\n\r\nBad Request"
+    },
+    {
+      "rule": "reject_fields_contaning_cr_lf_nul",
+      "case": "value_'\\x00'",
+      "description": "Reject header values containing CR/LF/NUL",
+      "expected": [
+        400
+      ],
+      "status": 400,
+      "passed": true,
+      "raw_response": "HTTP/1.1 400 Bad Request\r\ncontent-type: text/plain; charset=utf-8\r\ndate: Mon, 03 Nov 2025 06:07:11 GMT\r\nconnection: close\r\ncontent-length: 11\r\n\r\nBad Request"
+    },
+    {
+      "rule": "reject_fields_contaning_cr_lf_nul",
+      "case": "value_'\\r'",
+      "description": "Reject header values containing CR/LF/NUL",
+      "expected": [
+        400
+      ],
+      "status": 400,
+      "passed": true,
+      "raw_response": "HTTP/1.1 400 Bad Request\r\ncontent-type: text/plain; charset=utf-8\r\ndate: Mon, 03 Nov 2025 06:07:11 GMT\r\nconnection: close\r\ncontent-length: 11\r\n\r\nBad Request"
+    },
+    {
+      "rule": "reject_fields_contaning_cr_lf_nul",
+      "case": "value_'\\n'",
+      "description": "Reject header values containing CR/LF/NUL",
+      "expected": [
+        400
+      ],
+      "status": 400,
+      "passed": true,
+      "raw_response": "HTTP/1.1 400 Bad Request\r\ncontent-type: text/plain; charset=utf-8\r\ndate: Mon, 03 Nov 2025 06:07:11 GMT\r\nconnection: close\r\ncontent-length: 11\r\n\r\nBad Request"
+    },
+    {
+      "rule": "code_501_unknown_methods",
+      "case": "unknown_method",
+      "description": "Unknown HTTP method should return 501",
+      "expected": [
+        501
+      ],
+      "status": 501,
+      "passed": true,
+      "raw_response": "HTTP/1.1 501 Not Implemented\r\ncache-control: no-store\r\nage: 0\r\ndate: Mon, 03 Nov 2025 06:07:11 GMT\r\nconnection: close\r\ncontent-length: 0\r\n\r\n"
+    }
+  ],
+  "passed": 7,
+  "total": 7
+}
