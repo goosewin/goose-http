@@ -1,0 +1,50 @@
+src/routing/mod.rs
+  s_eedcb14715de80::t_31b1978907418e 144,220-224
+src/bin/compliance_harness.rs
+  s_eedcb14715de80::t_acf083931b7e36 392-397,401,403,406-416,523-528
+  s_eedcb14715de80::t_a6ec762cf5a0e6 398,420-425,439-441
+  s_eedcb14715de80::t_13fc3990f44c70 532-560
+src/request/mod.rs
+  s_eedcb14715de80::t_2289be10c0297c 160
+src/parse/mod.rs
+  s_eedcb14715de80::t_6b23eb7965b857 701-726
+  s_eedcb14715de80::t_5ee4c660e4062b 644-647
+  s_eedcb14715de80::t_c3b3883b35396c 20,28-32,513,574
+  s_eedcb14715de80::t_83ab68e8af9323 123
+src/cache/mod.rs
+  s_eedcb14715de80::t_007794d54ef6e6 87-90,93-96
+src/encode/mod.rs
+  s_eedcb14715de80::t_8da39e6a030380 93-98,201-202,205-206
+src/headers/mod.rs
+  s_eedcb14715de80::t_fa73a9387bf3d5 134
+src/range/mod.rs
+  s_eedcb14715de80::t_f30a00d4ad4c16 32-35
+src/conn/mod.rs
+  s_eedcb14715de80::t_fd00307dd0e87a 291,294,303,316-319,322-327,339-344
+  s_eedcb14715de80::t_15f3e9a6ef7e8b 106-112,123-131,145-149
+src/response/mod.rs
+  s_eedcb14715de80::t_fec834ed587f91 155-159
+tests/http_flow.rs
+  s_eedcb14715de80::t_4efa15d3d71c04 204
+  s_eedcb14715de80::t_80e06405fd6505 203,205-242,244-252
+  s_eedcb14715de80::t_357fbb4f4e40c8 243
+  s_eedcb14715de80::t_5d1f3ee2b9d6df 94-111,113-124
+src/body/mod.rs
+  s_eedcb14715de80::t_a5f3cc57d706c9 7,10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "69562e0a72784d7cc4deac1cd4aa4b60163453a0",
+  "prompts": {},
+  "sessions": {
+    "s_eedcb14715de80": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e9f69-7805-7451-9eee-9db0011821e6",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Dan Goosewin <dan@goosewin.com>"
+    }
+  }
+}
