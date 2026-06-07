@@ -91,37 +91,37 @@ async fn multi_range_responses_return_multipart_body() -> Result<(), Box<dyn std
     let handler_data = data.clone();
 
     let (addr, handle) = spawn_server(move |request: Request| {
-        if let Some(range_header) = request.header(header_keys::RANGE) {
-            if let Ok(specs) = range::parse_range_header(range_header) {
-                let ranges = range::compute_satisfiable_ranges(&specs, handler_data.len() as u64);
-                if ranges.len() > 1 {
-                    let boundary = "test-boundary";
-                    let mut body = String::new();
-                    for range in &ranges {
-                        let start = range.start as usize;
-                        let end = range.end as usize + 1;
-                        let slice = &handler_data[start..end];
-                        body.push_str(&format!(
-                            "--{boundary}\r\nContent-Type: text/plain\r\nContent-Range: bytes {}-{}/{}\r\n\r\n{}\r\n",
-                            range.start,
-                            range.end,
-                            handler_data.len(),
-                            std::str::from_utf8(slice).unwrap()
-                        ));
-                    }
-                    body.push_str(&format!("--{boundary}--\r\n"));
-
-                    let mut response = Response::new(StatusCode::PARTIAL_CONTENT);
-                    response.headers_mut().insert(
-                        header_keys::CONTENT_TYPE,
-                        format!("multipart/byteranges; boundary={boundary}"),
-                    );
-                    response
-                        .headers_mut()
-                        .insert(header_keys::ACCEPT_RANGES, "bytes");
-                    response.set_body_bytes(body);
-                    return response;
+        if let Some(range_header) = request.header(header_keys::RANGE)
+            && let Ok(specs) = range::parse_range_header(range_header)
+        {
+            let ranges = range::compute_satisfiable_ranges(&specs, handler_data.len() as u64);
+            if ranges.len() > 1 {
+                let boundary = "test-boundary";
+                let mut body = String::new();
+                for range in &ranges {
+                    let start = range.start as usize;
+                    let end = range.end as usize + 1;
+                    let slice = &handler_data[start..end];
+                    body.push_str(&format!(
+                        "--{boundary}\r\nContent-Type: text/plain\r\nContent-Range: bytes {}-{}/{}\r\n\r\n{}\r\n",
+                        range.start,
+                        range.end,
+                        handler_data.len(),
+                        std::str::from_utf8(slice).unwrap()
+                    ));
                 }
+                body.push_str(&format!("--{boundary}--\r\n"));
+
+                let mut response = Response::new(StatusCode::PARTIAL_CONTENT);
+                response.headers_mut().insert(
+                    header_keys::CONTENT_TYPE,
+                    format!("multipart/byteranges; boundary={boundary}"),
+                );
+                response
+                    .headers_mut()
+                    .insert(header_keys::ACCEPT_RANGES, "bytes");
+                response.set_body_bytes(body);
+                return response;
             }
         }
 
@@ -194,6 +194,62 @@ async fn router_returns_405_with_allow_header() -> Result<(), Box<dyn std::error
     assert!(headers.starts_with("HTTP/1.1 405"));
     assert!(headers.to_ascii_lowercase().contains("allow: get, head"));
     assert!(body.is_empty());
+
+    handle.abort();
+    let _ = handle.await;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn malformed_incomplete_heads_return_bad_request() -> Result<(), Box<dyn std::error::Error>> {
+    log::init();
+    let (addr, handle) = spawn_server(|_| {
+        let mut response = Response::new(StatusCode::OK);
+        response.set_body_text_static("ok");
+        response
+    })
+    .await;
+
+    for request in [
+        b"GET / HTTP/1.1\nHost: localhost\nConnection: close\n\n".as_slice(),
+        b"GET / HTTP/1.1\rHost: localhost\rConnection: close\r\r".as_slice(),
+        b"GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close".as_slice(),
+    ] {
+        let mut stream = TcpStream::connect(addr).await?;
+        stream.write_all(request).await?;
+        stream.shutdown().await?;
+
+        let headers = read_headers(&mut stream).await?;
+        assert!(headers.starts_with("HTTP/1.1 400"), "{headers}");
+    }
+
+    handle.abort();
+    let _ = handle.await;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn oversized_unterminated_head_returns_client_error() -> Result<(), Box<dyn std::error::Error>>
+{
+    log::init();
+    let (addr, handle) = spawn_server(|_| {
+        let mut response = Response::new(StatusCode::OK);
+        response.set_body_text_static("ok");
+        response
+    })
+    .await;
+
+    let mut request = b"GET / HTTP/1.1\r\nHost: localhost\r\nX-Large: ".to_vec();
+    request.extend(vec![b'a'; 70 * 1024]);
+
+    let mut stream = TcpStream::connect(addr).await?;
+    stream.write_all(&request).await?;
+
+    let headers = read_headers(&mut stream).await?;
+    assert!(
+        headers.starts_with("HTTP/1.1 400") || headers.starts_with("HTTP/1.1 431"),
+        "{headers}"
+    );
 
     handle.abort();
     let _ = handle.await;

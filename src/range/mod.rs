@@ -29,6 +29,10 @@ impl SatisfiableRange {
     pub fn len(self) -> u64 {
         self.end - self.start + 1
     }
+
+    pub fn is_empty(self) -> bool {
+        self.end < self.start
+    }
 }
 
 /// Errors that can occur when parsing or applying range headers.

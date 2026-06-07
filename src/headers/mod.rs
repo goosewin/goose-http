@@ -131,7 +131,7 @@ impl Headers {
             self.order.push(name.clone());
         }
 
-        self.map.entry(name).or_insert_with(Vec::new).push(value);
+        self.map.entry(name).or_default().push(value);
     }
 
     /// Get the first value for a header (most common use case).

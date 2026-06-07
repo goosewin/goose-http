@@ -4,18 +4,13 @@
 //! payloads. For now we supply a simplified scaffold.
 
 /// Represents the body of an HTTP message.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum Body {
     /// No body is present.
+    #[default]
     Empty,
     /// A fixed-length body with the specified number of bytes.
     Fixed(u64),
     /// A chunked transfer-coded body.
     Chunked,
-}
-
-impl Default for Body {
-    fn default() -> Self {
-        Body::Empty
-    }
 }

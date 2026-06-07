@@ -389,38 +389,40 @@ fn serve_vary_accept_language(request: Request) -> Response {
 }
 
 fn serve_range_demo(request: Request) -> Response {
-    if let Some(range_header) = request.header(header_keys::RANGE) {
-        if let Ok(specs) = range::parse_range_header(range_header) {
-            let ranges = range::compute_satisfiable_ranges(&specs, RANGE_BYTES.len() as u64);
-            if ranges.is_empty() {
-                let mut partial = Response::new(StatusCode::RANGE_NOT_SATISFIABLE);
-                partial.headers_mut().insert(
-                    header_keys::CONTENT_RANGE,
-                    range::format_unsatisfied_range(RANGE_BYTES.len() as u64),
-                );
-                partial.set_body(ResponseBody::Empty);
-                return partial;
-            }
-
-            let range = ranges[0];
-            let slice = &RANGE_BYTES[range.start as usize..=range.end as usize];
-            let mut partial = Response::new(StatusCode::PARTIAL_CONTENT);
+    if let Some(range_header) = request.header(header_keys::RANGE)
+        && let Ok(specs) = range::parse_range_header(range_header)
+    {
+        let ranges = range::compute_satisfiable_ranges(&specs, RANGE_BYTES.len() as u64);
+        if ranges.is_empty() {
+            let mut partial = Response::new(StatusCode::RANGE_NOT_SATISFIABLE);
+            apply_range_demo_headers(&mut partial);
             partial.headers_mut().insert(
                 header_keys::CONTENT_RANGE,
-                range::format_content_range(range, RANGE_BYTES.len() as u64),
+                range::format_unsatisfied_range(RANGE_BYTES.len() as u64),
             );
-            partial
-                .headers_mut()
-                .insert(header_keys::ACCEPT_RANGES, "bytes");
-            partial
-                .headers_mut()
-                .insert(header_keys::CONTENT_TYPE, "text/plain; charset=utf-8");
-            partial.set_body(ResponseBody::Full(Bytes::copy_from_slice(slice)));
+            partial.set_body(ResponseBody::Empty);
             return partial;
         }
+
+        let range = ranges[0];
+        let slice = &RANGE_BYTES[range.start as usize..=range.end as usize];
+        let mut partial = Response::new(StatusCode::PARTIAL_CONTENT);
+        apply_range_demo_headers(&mut partial);
+        partial.headers_mut().insert(
+            header_keys::CONTENT_RANGE,
+            range::format_content_range(range, RANGE_BYTES.len() as u64),
+        );
+        partial.set_body(ResponseBody::Full(Bytes::copy_from_slice(slice)));
+        return partial;
     }
 
     let mut response = Response::new(StatusCode::OK);
+    apply_range_demo_headers(&mut response);
+    response.set_body_bytes(Bytes::from_static(RANGE_BYTES));
+    response
+}
+
+fn apply_range_demo_headers(response: &mut Response) {
     response
         .headers_mut()
         .insert(header_keys::CONTENT_TYPE, "text/plain; charset=utf-8");
@@ -433,9 +435,10 @@ fn serve_range_demo(request: Request) -> Response {
     response
         .headers_mut()
         .insert(header_keys::LAST_MODIFIED, LAST_MODIFIED_STAMP);
-    cache::ensure_age_header(response.headers_mut());
-    response.set_body_bytes(Bytes::from_static(RANGE_BYTES));
     response
+        .headers_mut()
+        .insert(header_keys::CACHE_CONTROL, "max-age=120, must-revalidate");
+    cache::ensure_age_header(response.headers_mut());
 }
 
 fn serve_options(_request: Request) -> Response {
@@ -517,12 +520,41 @@ fn normalize_head_response(response: &mut Response) {
         _ => None,
     };
 
-    if let Some(len) = body_len {
-        if !response.headers().contains(header_keys::CONTENT_LENGTH) {
-            response
-                .headers_mut()
-                .insert(header_keys::CONTENT_LENGTH, len.to_string());
-        }
+    if let Some(len) = body_len
+        && !response.headers().contains(header_keys::CONTENT_LENGTH)
+    {
+        response
+            .headers_mut()
+            .insert(header_keys::CONTENT_LENGTH, len.to_string());
     }
     response.set_body(ResponseBody::Empty);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn range_demo_partial_response_includes_representation_headers() {
+        let request = Request::builder(Method::Get, RequestTarget::origin("/range/demo"))
+            .header(header_keys::RANGE, "bytes=0-3")
+            .build();
+
+        let response = serve_range_demo(request);
+        let headers = response.headers();
+
+        assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+        assert_eq!(
+            headers.get(header_keys::CONTENT_RANGE),
+            Some("bytes 0-3/2387")
+        );
+        assert_eq!(headers.get(header_keys::ACCEPT_RANGES), Some("bytes"));
+        assert_eq!(
+            headers.get(header_keys::CONTENT_TYPE),
+            Some("text/plain; charset=utf-8")
+        );
+        assert!(headers.get(header_keys::ETAG).is_some());
+        assert!(headers.get(header_keys::LAST_MODIFIED).is_some());
+        assert!(headers.get(header_keys::CACHE_CONTROL).is_some());
+    }
 }

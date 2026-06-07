@@ -84,16 +84,16 @@ pub fn policy_from_headers(headers: &Headers) -> CachePolicy {
 
 /// Compute the freshness lifetime hinted by the headers.
 pub fn freshness_lifetime(policy: &CachePolicy, date: Option<SystemTime>) -> Option<Duration> {
-    if let Some(control) = &policy.control {
-        if let Some(max_age) = control.max_age {
-            return Some(Duration::from_secs(max_age));
-        }
+    if let Some(control) = &policy.control
+        && let Some(max_age) = control.max_age
+    {
+        return Some(Duration::from_secs(max_age));
     }
 
-    if let (Some(expires), Some(date_value)) = (policy.expires, date) {
-        if let Ok(delta) = expires.duration_since(date_value) {
-            return Some(delta);
-        }
+    if let (Some(expires), Some(date_value)) = (policy.expires, date)
+        && let Ok(delta) = expires.duration_since(date_value)
+    {
+        return Some(delta);
     }
 
     None

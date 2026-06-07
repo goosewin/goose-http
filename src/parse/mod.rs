@@ -17,12 +17,17 @@ use crate::{
     request::{Request, RequestTarget},
 };
 
-const HEADER_LIMIT: usize = 64 * 1024;
+pub(crate) const HEADER_LIMIT: usize = 64 * 1024;
 const LINE_LIMIT: usize = 8 * 1024;
 
 /// Indicates whether more bytes are required to parse a complete request head.
 pub fn needs_more_head(buffer: &[u8]) -> bool {
     find_headers_end(buffer).is_none()
+}
+
+/// Indicates whether an incomplete request head has exceeded the header limit.
+pub(crate) fn incomplete_head_exceeds_limit(buffer: &[u8]) -> bool {
+    find_headers_end(buffer).is_none() && buffer.len() > HEADER_LIMIT
 }
 
 /// Parse a request head (start-line + headers) from the provided buffer.
@@ -115,7 +120,7 @@ pub fn parse_request_head(buffer: &[u8]) -> Result<(Request, BodyMode, usize), P
         return Err(ParseError::MissingHost);
     }
 
-    let body_mode = determine_body_mode(&method, content_length, &transfer_encodings)?;
+    let body_mode = determine_body_mode(content_length, &transfer_encodings)?;
 
     let mut request = Request::new(method, target);
     request.set_version(version);
@@ -501,11 +506,13 @@ fn parse_request_target(method: &Method, target: &str) -> Result<RequestTarget, 
         return Err(ParseError::InvalidRequestTarget);
     }
 
-    if target.contains("://") {
+    if let Some(scheme_end) = target.find("://")
+        && is_uri_scheme(&target[..scheme_end])
+    {
         return Ok(RequestTarget::Absolute(target.to_string()));
     }
 
-    Ok(RequestTarget::Origin(target.to_string()))
+    Err(ParseError::InvalidRequestTarget)
 }
 
 fn split_header_line(line: &str) -> Result<(&str, &str), ParseError> {
@@ -538,7 +545,6 @@ fn parse_transfer_encoding(value: &str) -> Result<Vec<String>, ParseError> {
 }
 
 fn determine_body_mode(
-    method: &Method,
     content_length: Option<u64>,
     transfer_encodings: &[String],
 ) -> Result<BodyMode, ParseError> {
@@ -567,11 +573,7 @@ fn determine_body_mode(
         return Ok(BodyMode::Fixed(length));
     }
 
-    if matches!(method, Method::Get | Method::Head | Method::Trace) {
-        Ok(BodyMode::None)
-    } else {
-        Ok(BodyMode::None)
-    }
+    Ok(BodyMode::None)
 }
 
 fn find_headers_end(buffer: &[u8]) -> Option<usize> {
@@ -591,6 +593,16 @@ fn is_field_name(name: &str) -> bool {
 
 fn is_token(value: &str) -> bool {
     !value.is_empty() && value.bytes().all(is_tchar)
+}
+
+fn is_uri_scheme(value: &str) -> bool {
+    let mut bytes = value.bytes();
+    let Some(first) = bytes.next() else {
+        return false;
+    };
+
+    first.is_ascii_alphabetic()
+        && bytes.all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'.' | b'-'))
 }
 
 const fn is_tchar(byte: u8) -> bool {
@@ -641,10 +653,10 @@ fn is_valid_host(value: &str) -> bool {
         return false;
     }
 
-    if let Some(port) = parts.next() {
-        if port.is_empty() || !port.chars().all(|c| c.is_ascii_digit()) {
-            return false;
-        }
+    if let Some(port) = parts.next()
+        && (port.is_empty() || !port.chars().all(|c| c.is_ascii_digit()))
+    {
+        return false;
     }
 
     true
@@ -696,6 +708,46 @@ mod tests {
         assert_eq!(request.method().as_str(), "GET");
         assert_eq!(request.version(), HttpVersion::HTTP_1_1);
         assert_eq!(mode, BodyMode::None);
+    }
+
+    #[test]
+    fn rejects_invalid_origin_targets_for_non_connect_methods() {
+        let bare_target = b"GET noslash HTTP/1.1\r\nHost: example.com\r\n\r\n";
+        let authority_target = b"GET example.com:80 HTTP/1.1\r\nHost: example.com\r\n\r\n";
+
+        assert!(matches!(
+            parse_request_head(bare_target),
+            Err(ParseError::InvalidRequestTarget)
+        ));
+        assert!(matches!(
+            parse_request_head(authority_target),
+            Err(ParseError::InvalidRequestTarget)
+        ));
+    }
+
+    #[test]
+    fn accepts_valid_non_origin_target_forms() {
+        let absolute = b"GET http://example.com/ HTTP/1.1\r\nHost: example.com\r\n\r\n";
+        let options = b"OPTIONS * HTTP/1.1\r\nHost: example.com\r\n\r\n";
+        let connect = b"CONNECT example.com:443 HTTP/1.1\r\nHost: example.com\r\n\r\n";
+
+        assert!(parse_request_head(absolute).is_ok());
+        assert!(parse_request_head(options).is_ok());
+        assert!(parse_request_head(connect).is_ok());
+    }
+
+    #[test]
+    fn rejects_absolute_targets_with_invalid_scheme() {
+        for request in [
+            b"GET ://bad HTTP/1.1\r\nHost: example.com\r\n\r\n".as_slice(),
+            b"GET 1://bad HTTP/1.1\r\nHost: example.com\r\n\r\n".as_slice(),
+            b"GET a_b://bad HTTP/1.1\r\nHost: example.com\r\n\r\n".as_slice(),
+        ] {
+            assert!(matches!(
+                parse_request_head(request),
+                Err(ParseError::InvalidRequestTarget)
+            ));
+        }
     }
 
     #[tokio::test]

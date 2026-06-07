@@ -157,7 +157,7 @@ impl Request {
 
     /// Determine whether the request prefers the connection to close.
     pub fn wants_close(&self) -> bool {
-        self.header(header_keys::CONNECTION).map_or(false, |value| {
+        self.header(header_keys::CONNECTION).is_some_and(|value| {
             value
                 .split(',')
                 .any(|token| token.trim().eq_ignore_ascii_case("close"))

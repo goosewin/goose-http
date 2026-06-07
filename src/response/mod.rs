@@ -152,11 +152,11 @@ impl Response {
     /// Prepare the response for a HEAD reply by stripping the body while
     /// preserving the advertised payload length when known.
     pub fn strip_body_for_head(&mut self) {
-        if let ResponseBody::Full(bytes) = &self.body {
-            if !self.headers.contains(header_keys::CONTENT_LENGTH) {
-                self.headers
-                    .insert(header_keys::CONTENT_LENGTH, bytes.len().to_string());
-            }
+        if let ResponseBody::Full(bytes) = &self.body
+            && !self.headers.contains(header_keys::CONTENT_LENGTH)
+        {
+            self.headers
+                .insert(header_keys::CONTENT_LENGTH, bytes.len().to_string());
         }
         self.body = ResponseBody::Empty;
     }

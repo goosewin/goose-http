@@ -141,7 +141,7 @@ impl RouterBuilder {
     }
 
     fn insert_route(&mut self, method: Method, path: String, handler: SharedHandler) {
-        let entry = self.routes.entry(path).or_insert_with(RouteEntry::default);
+        let entry = self.routes.entry(path).or_default();
         entry.insert(method, handler);
     }
 }
@@ -217,10 +217,11 @@ impl RouteEntry {
             return RouteMatch::matched(handler, false);
         }
 
-        if auto_head && method.eq_ignore_ascii_case("HEAD") {
-            if let Some(handler) = self.handlers.get("GET") {
-                return RouteMatch::matched(handler, true);
-            }
+        if auto_head
+            && method.eq_ignore_ascii_case("HEAD")
+            && let Some(handler) = self.handlers.get("GET")
+        {
+            return RouteMatch::matched(handler, true);
         }
 
         RouteMatch::method_not_allowed(self.allow_header(auto_head))
