@@ -1,0 +1,21 @@
+src/parse/mod.rs
+  s_eedcb14715de80::t_c16bf93eb1c5a8 739-752
+  s_eedcb14715de80::t_9b7f00b3a160d2 509-511,605
+  s_eedcb14715de80::t_e8ae609e004bf9 598-604
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "803fa60223f9b039ae0a265382bbb57077eb0fe0",
+  "prompts": {},
+  "sessions": {
+    "s_eedcb14715de80": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e9f69-7805-7451-9eee-9db0011821e6",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Dan Goosewin <dan@goosewin.com>"
+    }
+  }
+}
