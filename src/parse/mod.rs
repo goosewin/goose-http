@@ -506,7 +506,9 @@ fn parse_request_target(method: &Method, target: &str) -> Result<RequestTarget, 
         return Err(ParseError::InvalidRequestTarget);
     }
 
-    if target.contains("://") {
+    if let Some(scheme_end) = target.find("://")
+        && is_uri_scheme(&target[..scheme_end])
+    {
         return Ok(RequestTarget::Absolute(target.to_string()));
     }
 
@@ -591,6 +593,16 @@ fn is_field_name(name: &str) -> bool {
 
 fn is_token(value: &str) -> bool {
     !value.is_empty() && value.bytes().all(is_tchar)
+}
+
+fn is_uri_scheme(value: &str) -> bool {
+    let mut bytes = value.bytes();
+    let Some(first) = bytes.next() else {
+        return false;
+    };
+
+    first.is_ascii_alphabetic()
+        && bytes.all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'.' | b'-'))
 }
 
 const fn is_tchar(byte: u8) -> bool {
@@ -722,6 +734,20 @@ mod tests {
         assert!(parse_request_head(absolute).is_ok());
         assert!(parse_request_head(options).is_ok());
         assert!(parse_request_head(connect).is_ok());
+    }
+
+    #[test]
+    fn rejects_absolute_targets_with_invalid_scheme() {
+        for request in [
+            b"GET ://bad HTTP/1.1\r\nHost: example.com\r\n\r\n".as_slice(),
+            b"GET 1://bad HTTP/1.1\r\nHost: example.com\r\n\r\n".as_slice(),
+            b"GET a_b://bad HTTP/1.1\r\nHost: example.com\r\n\r\n".as_slice(),
+        ] {
+            assert!(matches!(
+                parse_request_head(request),
+                Err(ParseError::InvalidRequestTarget)
+            ));
+        }
     }
 
     #[tokio::test]
