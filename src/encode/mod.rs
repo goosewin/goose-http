@@ -90,12 +90,12 @@ where
         let body_allowed = response_allows_body(status, request_method);
 
         if !body_allowed {
-            if matches!(request_method, Method::Head) {
-                if let ResponseBody::Full(ref bytes) = body {
-                    if !forbid_content_length && !headers.contains(header_keys::CONTENT_LENGTH) {
-                        headers.insert(header_keys::CONTENT_LENGTH, bytes.len().to_string());
-                    }
-                }
+            if matches!(request_method, Method::Head)
+                && let ResponseBody::Full(ref bytes) = body
+                && !forbid_content_length
+                && !headers.contains(header_keys::CONTENT_LENGTH)
+            {
+                headers.insert(header_keys::CONTENT_LENGTH, bytes.len().to_string());
             }
             headers.remove(header_keys::TRANSFER_ENCODING);
             if forbid_content_length {
@@ -198,13 +198,12 @@ fn ensure_chunked_encoding(headers: &mut Headers) {
     let existing = headers
         .get(header_keys::TRANSFER_ENCODING)
         .map(|v| v.to_string());
-    if let Some(value) = existing {
-        if value
+    if let Some(value) = existing
+        && value
             .split(',')
             .any(|token| token.trim().eq_ignore_ascii_case("chunked"))
-        {
-            return;
-        }
+    {
+        return;
     }
     headers.insert(header_keys::TRANSFER_ENCODING, "chunked");
 }

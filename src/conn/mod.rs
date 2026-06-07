@@ -103,6 +103,13 @@ impl Connection {
         loop {
             self.state = ConnectionState::Idle;
 
+            if parse::incomplete_head_exceeds_limit(&self.buffer[..]) {
+                self.respond_with_error(StatusCode::BAD_REQUEST, "Bad Request")
+                    .await?;
+                self.state = ConnectionState::Closing;
+                return Err(ConnectionError::Parse(ParseError::HeaderTooLarge));
+            }
+
             if parse::needs_more_head(&self.buffer[..]) {
                 let buffer_empty = self.buffer.is_empty();
                 let (timeout_duration, timeout_kind) = if buffer_empty && processed_requests {
@@ -113,7 +120,15 @@ impl Connection {
 
                 match time::timeout(timeout_duration, self.stream.read_buf(&mut self.buffer)).await
                 {
-                    Ok(Ok(0)) => return Ok(()),
+                    Ok(Ok(0)) => {
+                        if self.buffer.is_empty() {
+                            return Ok(());
+                        }
+                        self.respond_with_error(StatusCode::BAD_REQUEST, "Bad Request")
+                            .await?;
+                        self.state = ConnectionState::Closing;
+                        return Err(ConnectionError::Parse(ParseError::Incomplete));
+                    }
                     Ok(Ok(_)) => {}
                     Ok(Err(error)) => return Err(ConnectionError::Io(error)),
                     Err(_) => {
@@ -125,6 +140,13 @@ impl Connection {
                             .await?;
                         return Err(ConnectionError::Timeout(timeout_kind));
                     }
+                }
+
+                if parse::incomplete_head_exceeds_limit(&self.buffer[..]) {
+                    self.respond_with_error(StatusCode::BAD_REQUEST, "Bad Request")
+                        .await?;
+                    self.state = ConnectionState::Closing;
+                    return Err(ConnectionError::Parse(ParseError::HeaderTooLarge));
                 }
 
                 continue;
@@ -266,10 +288,10 @@ fn should_close_after_request(version: HttpVersion, headers: &crate::headers::He
     match version {
         HttpVersion::Http11 => headers
             .get(header_keys::CONNECTION)
-            .map_or(false, |value| contains_token(value, "close")),
+            .is_some_and(|value| contains_token(value, "close")),
         HttpVersion::Http10 => !headers
             .get(header_keys::CONNECTION)
-            .map_or(false, |value| contains_token(value, "keep-alive")),
+            .is_some_and(|value| contains_token(value, "keep-alive")),
         _ => true,
     }
 }
@@ -278,7 +300,7 @@ fn response_requests_close(response: &Response) -> bool {
     response
         .headers()
         .get(header_keys::CONNECTION)
-        .map_or(false, |value| contains_token(value, "close"))
+        .is_some_and(|value| contains_token(value, "close"))
 }
 
 fn contains_token(value: &str, token: &str) -> bool {
@@ -291,20 +313,18 @@ fn apply_request_preconditions(request: &Request, response: &mut Response) {
     let mut decision: Option<StatusCode> = None;
     let response_etag = response.headers().get(header_keys::ETAG);
 
-    if let Some(if_match) = request.if_match() {
-        if !etag_list_matches(if_match, response_etag, true) {
-            decision = Some(StatusCode::PRECONDITION_FAILED);
-        }
+    if let Some(if_match) = request.if_match()
+        && !etag_list_matches(if_match, response_etag, true)
+    {
+        decision = Some(StatusCode::PRECONDITION_FAILED);
     }
 
-    if decision.is_none() {
-        if let Some(unmodified_since) = request.if_unmodified_since() {
-            if let Some(last_modified) = parse_last_modified(response) {
-                if last_modified > unmodified_since {
-                    decision = Some(StatusCode::PRECONDITION_FAILED);
-                }
-            }
-        }
+    if decision.is_none()
+        && let Some(unmodified_since) = request.if_unmodified_since()
+        && let Some(last_modified) = parse_last_modified(response)
+        && last_modified > unmodified_since
+    {
+        decision = Some(StatusCode::PRECONDITION_FAILED);
     }
 
     if decision.is_none() {
@@ -316,14 +336,12 @@ fn apply_request_preconditions(request: &Request, response: &mut Response) {
                     decision = Some(StatusCode::PRECONDITION_FAILED);
                 }
             }
-        } else if let Some(if_modified_since) = request.if_modified_since() {
-            if matches!(request.method(), Method::Get | Method::Head) {
-                if let Some(last_modified) = parse_last_modified(response) {
-                    if last_modified <= if_modified_since {
-                        decision = Some(StatusCode::NOT_MODIFIED);
-                    }
-                }
-            }
+        } else if let Some(if_modified_since) = request.if_modified_since()
+            && matches!(request.method(), Method::Get | Method::Head)
+            && let Some(last_modified) = parse_last_modified(response)
+            && last_modified <= if_modified_since
+        {
+            decision = Some(StatusCode::NOT_MODIFIED);
         }
     }
 
